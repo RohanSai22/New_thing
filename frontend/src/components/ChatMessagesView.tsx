@@ -12,6 +12,7 @@ import {
   ActivityTimeline,
   ProcessedEvent,
 } from "@/components/ActivityTimeline"; // Assuming ActivityTimeline is in the same dir or adjust path
+import { motion } from "framer-motion";
 
 // Markdown component props type from former ReportView
 type MdComponentProps = {
@@ -146,7 +147,10 @@ const HumanMessageBubble: React.FC<HumanMessageBubbleProps> = ({
   mdComponents,
 }) => {
   return (
-    <div
+    <motion.div // WRAPPER START
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
       className={`text-white rounded-3xl break-words min-h-7 bg-neutral-700 max-w-[100%] sm:max-w-[90%] px-4 pt-3 rounded-br-lg`}
     >
       <ReactMarkdown components={mdComponents}>
@@ -154,7 +158,7 @@ const HumanMessageBubble: React.FC<HumanMessageBubbleProps> = ({
           ? message.content
           : JSON.stringify(message.content)}
       </ReactMarkdown>
-    </div>
+    </motion.div> // WRAPPER END
   );
 };
 
@@ -187,9 +191,15 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
   const isLiveActivityForThisBubble = isLastMessage && isOverallLoading;
 
   return (
-    <div className={`relative break-words flex flex-col`}>
-      {activityForThisBubble && activityForThisBubble.length > 0 && (
-        <div className="mb-3 border-b border-neutral-700 pb-3 text-xs">
+    <motion.div // WRAPPER START
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="w-full" // Add w-full or ensure it takes up appropriate width
+    >
+      <div className={`relative break-words flex flex-col`}> {/* Existing outer div of AI bubble */}
+        {activityForThisBubble && activityForThisBubble.length > 0 && (
+          <div className="mb-3 border-b border-neutral-700 pb-3 text-xs">
           <ActivityTimeline
             processedEvents={activityForThisBubble}
             isLoading={isLiveActivityForThisBubble}
@@ -217,6 +227,7 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
         {copiedMessageId === message.id ? <CopyCheck /> : <Copy />}
       </Button>
     </div>
+    </motion.div> // WRAPPER END
   );
 };
 

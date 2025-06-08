@@ -20,6 +20,7 @@ export default function App() {
     initial_search_query_count: number;
     max_research_loops: number;
     reasoning_model: string;
+    effort: string; // Add this line
   }>({
     apiUrl: import.meta.env.DEV
       ? "http://localhost:2024"
@@ -30,49 +31,65 @@ export default function App() {
       console.log(event);
     },
     onUpdateEvent: (event: any) => {
-      let processedEvent: ProcessedEvent | null = null;
-      if (event.generate_query) {
-        const queries = Array.isArray(event.generate_query.query_list)
-          ? event.generate_query.query_list
-          : [];
-        processedEvent = {
-          title: "Generating Search Queries",
-          data:
-            queries.length > 0 ? queries.join(", ") : "No queries generated.",
-        };
-      } else if (event.web_research) {
-        const sources = event.web_research.sources_gathered || [];
-        const numSources = sources.length;
-        const uniqueLabels = [
-          ...new Set(sources.map((s: any) => s.label).filter(Boolean)),
-        ];
-        const exampleLabels = uniqueLabels.slice(0, 3).join(", ");
-        processedEvent = {
-          title: "Web Research",
-          data: `Gathered ${numSources} sources. Related to: ${
-            exampleLabels || "N/A"
-          }.`,
-        };
-      } else if (event.reflection) {
-        processedEvent = {
-          title: "Reflection",
-          data: event.reflection.is_sufficient
-            ? "Search successful, generating final answer."
-            : `Need more information, searching for ${(
-                event.reflection.follow_up_queries || []
-              ).join(", ")}`,
-        };
-      } else if (event.finalize_answer) {
-        processedEvent = {
-          title: "Finalizing Answer",
-          data: "Composing and presenting the final answer.",
-        };
-        hasFinalizeEventOccurredRef.current = true;
+      let newProcessedEvents: ProcessedEvent[] = [];
+      console.log("Raw event:", event); // For debugging
+
+      for (const nodeName in event) {
+        const nodeEvent = event[nodeName]; // This is the {type: "...", data: "..."} object
+        if (nodeEvent && typeof nodeEvent === 'object' && nodeEvent.type) {
+          let sectionType = "General"; // Default section type
+          let title = nodeName.replace(/_/g, ' '); // Default title from node name
+          title = title.charAt(0).toUpperCase() + title.slice(1); // Capitalize
+          let isSources = false;
+          let data = nodeEvent.data;
+
+          // Determine sectionType and customize title based on nodeName and eventType
+          if (nodeName === "generate_query") {
+            sectionType = "Querying";
+            title = "Generating Search Queries";
+          } else if (nodeName === "web_research") {
+            sectionType = "Searching";
+            if (nodeEvent.type === "status") {
+              title = "Web Research Status";
+            } else if (nodeEvent.type === "sources") {
+              title = "Found Sources";
+              isSources = true; // Mark that data is source links
+            }
+          } else if (nodeName === "reflection") {
+            sectionType = "Planning";
+            if (nodeEvent.type === "status") {
+              title = "Reflection Status";
+            } else if (nodeEvent.type === "plan") {
+              title = "Reflection Plan";
+            }
+          } else if (nodeName === "code_execution") {
+            sectionType = "Coding";
+            if (nodeEvent.type === "status") {
+              title = "Code Execution Status";
+            } else if (nodeEvent.type === "output") {
+              title = "Code Execution Output";
+              // Data for code output might be an object {stdout, stderr, error}
+              // Or it could be a simple string. ActivityTimeline will need to handle this.
+            }
+          } else if (nodeName === "finalize_answer") {
+            sectionType = "Finalizing";
+            title = "Finalizing Answer";
+            hasFinalizeEventOccurredRef.current = true; // Keep existing logic for finalize
+          }
+
+          newProcessedEvents.push({
+            title: title,
+            data: data,
+            sectionType: sectionType,
+            isSources: isSources,
+          });
+        }
       }
-      if (processedEvent) {
+
+      if (newProcessedEvents.length > 0) {
         setProcessedEventsTimeline((prevEvents) => [
           ...prevEvents,
-          processedEvent!,
+          ...newProcessedEvents,
         ]);
       }
     },
@@ -146,6 +163,7 @@ export default function App() {
         initial_search_query_count: initial_search_query_count,
         max_research_loops: max_research_loops,
         reasoning_model: model,
+        effort: effort, // Add this line
       });
     },
     [thread]
@@ -157,7 +175,7 @@ export default function App() {
   }, [thread]);
 
   return (
-    <div className="flex h-screen bg-neutral-800 text-neutral-100 font-sans antialiased">
+    <div className="flex h-screen text-neutral-100 font-sans antialiased">
       <main className="flex-1 flex flex-col overflow-hidden max-w-4xl mx-auto w-full">
         <div
           className={`flex-1 overflow-y-auto ${

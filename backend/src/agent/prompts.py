@@ -47,33 +47,86 @@ Research Topic:
 {research_topic}
 """
 
-reflection_instructions = """You are an expert research assistant analyzing summaries about "{research_topic}".
+reflection_instructions = """
+You are an expert research assistant analyzing summaries about "{research_topic}".
+Your current operational effort level is: **{effort}**.
+
+**Effort Level Guidance:**
+- If Effort is "low": Prioritize speed. Avoid code execution and follow-up searches unless the query is impossible to answer otherwise. Aim to be sufficient in one loop. If code is absolutely necessary, keep it minimal.
+- If Effort is "medium": Perform thorough research. If the query involves data, numbers, or complex logic, you should consider using the code execution tool to generate or verify information. Plan for one or two loops of follow-up questions or code execution if needed.
+- If Effort is "high": You are in deep research mode. Actively seek opportunities to use code execution for verification, complex calculations, data visualization, or to process information from multiple sources. Plan for multiple research loops and code executions. Do not stop until the user's query has been answered exhaustively. Generate comprehensive code if it helps in achieving a better answer.
+
+Your goal is to determine if the current information is sufficient or if further actions are needed, which may include additional web searches or executing code, keeping your effort level in mind.
 
 Instructions:
-- Identify knowledge gaps or areas that need deeper exploration and generate a follow-up query. (1 or multiple).
-- If provided summaries are sufficient to answer the user's question, don't generate a follow-up query.
-- If there is a knowledge gap, generate a follow-up query that would help expand your understanding.
-- Focus on technical details, implementation specifics, or emerging trends that weren't fully covered.
+- Evaluate the provided summaries based on your current effort level. Are they sufficient to answer the user's question comprehensively?
+- If not, identify the knowledge gap. What specific information is missing or needs clarification?
+- Based on the knowledge gap, you can suggest:
+    a) Follow-up web search queries if more information needs to be gathered from the web.
+    b) Writing files and a command to execute them in a sandbox if calculations, data processing, or code-based verification is needed.
+- If you decide code execution is useful, provide:
+    - `files_to_write`: A list of dictionaries, where each dictionary has "filename" (e.g., "main.py", "utils/helpers.py") and "code" (the Python code).
+    - `command_to_run`: The shell command to execute these files (e.g., "python main.py").
+- If code execution is not needed, `files_to_write` should be an empty list and `command_to_run` an empty string.
+- If further web searches are not needed, `follow_up_queries` should be an empty list.
+- If the information is sufficient, set `is_sufficient` to true.
 
 Requirements:
-- Ensure the follow-up query is self-contained and includes necessary context for web search.
+- Ensure any follow-up queries are self-contained and include necessary context.
+- Ensure filenames for code execution can represent paths (e.g., 'my_module/main.py').
+- The agent can only either perform web searches OR execute code in a single step, not both. Prioritize the action that seems most direct to fill the knowledge gap.
 
 Output Format:
 - Format your response as a JSON object with these exact keys:
    - "is_sufficient": true or false
-   - "knowledge_gap": Describe what information is missing or needs clarification
-   - "follow_up_queries": Write a specific question to address this gap
+   - "knowledge_gap": Describe what information is missing or needs clarification (can be empty if sufficient).
+   - "follow_up_queries": A list of specific questions to address this gap (can be empty).
+   - "files_to_write": A list of file dictionaries (e.g., `[{"filename": "script.py", "code": "print('Hello')"}]`) or an empty list.
+   - "command_to_run": A string for the command (e.g., "python script.py") or an empty string.
 
-Example:
+Example for code execution:
 ```json
 {{
-    "is_sufficient": true, // or false
-    "knowledge_gap": "The summary lacks information about performance metrics and benchmarks", // "" if is_sufficient is true
-    "follow_up_queries": ["What are typical performance benchmarks and metrics used to evaluate [specific technology]?"] // [] if is_sufficient is true
+    "is_sufficient": false,
+    "knowledge_gap": "The summary mentions a complex calculation is needed to determine the growth rate. I need to perform this calculation.",
+    "follow_up_queries": [],
+    "files_to_write": [
+        {{
+            "filename": "calculator.py",
+            "code": "def calculate_growth(initial, final):\\n  return ((final - initial) / initial) * 100"
+        }},
+        {{
+            "filename": "main.py",
+            "code": "from calculator import calculate_growth\\ninitial_val = 100\\nfinal_val = 150\\ngrowth = calculate_growth(initial_val, final_val)\\nprint(f'Growth rate: {{growth}}%')"
+        }}
+    ],
+    "command_to_run": "python main.py"
 }}
 ```
 
-Reflect carefully on the Summaries to identify knowledge gaps and produce a follow-up query. Then, produce your output following this JSON format:
+Example for follow-up search:
+```json
+{{
+    "is_sufficient": false,
+    "knowledge_gap": "The summary lacks information about recent market trends for this technology.",
+    "follow_up_queries": ["What are the latest market trends for [specific technology] in 2024?"],
+    "files_to_write": [],
+    "command_to_run": ""
+}}
+```
+
+Example when sufficient:
+```json
+{{
+    "is_sufficient": true,
+    "knowledge_gap": "",
+    "follow_up_queries": [],
+    "files_to_write": [],
+    "command_to_run": ""
+}}
+```
+
+Reflect carefully on the Summaries to identify knowledge gaps and produce your output following this JSON format, adhering to your **{effort}** level guidance.
 
 Summaries:
 {summaries}

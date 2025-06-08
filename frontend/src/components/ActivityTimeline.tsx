@@ -1,11 +1,4 @@
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-} from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import {
   Loader2,
   Activity,
   Info,
@@ -15,12 +8,18 @@ import {
   Pen,
   ChevronDown,
   ChevronUp,
+  Code2, // Icon for Coding
+  FileText, // Icon for General/Output
+  Link as LinkIcon, // Icon for Sources
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState, useMemo } from "react";
+import { Badge } from "@/components/ui/badge"; // For source links
 
 export interface ProcessedEvent {
   title: string;
   data: any;
+  sectionType: string; // e.g., "Planning", "Searching", "Coding", "Finalizing"
+  isSources?: boolean; // True if data contains source links
 }
 
 interface ActivityTimelineProps {
@@ -28,119 +27,149 @@ interface ActivityTimelineProps {
   isLoading: boolean;
 }
 
+// Helper to get icon based on sectionType
+const getSectionIcon = (sectionType: string) => {
+  switch (sectionType.toLowerCase()) {
+    case "querying":
+      return <TextSearch className="h-5 w-5 mr-2 text-neutral-400" />;
+    case "searching":
+      return <Search className="h-5 w-5 mr-2 text-neutral-400" />;
+    case "planning":
+      return <Brain className="h-5 w-5 mr-2 text-neutral-400" />;
+    case "coding":
+      return <Code2 className="h-5 w-5 mr-2 text-neutral-400" />;
+    case "finalizing":
+      return <Pen className="h-5 w-5 mr-2 text-neutral-400" />;
+    default:
+      return <Activity className="h-5 w-5 mr-2 text-neutral-400" />;
+  }
+};
+
 export function ActivityTimeline({
   processedEvents,
   isLoading,
 }: ActivityTimelineProps) {
-  const [isTimelineCollapsed, setIsTimelineCollapsed] =
-    useState<boolean>(false);
-  const getEventIcon = (title: string, index: number) => {
-    if (index === 0 && isLoading && processedEvents.length === 0) {
-      return <Loader2 className="h-4 w-4 text-neutral-400 animate-spin" />;
-    }
-    if (title.toLowerCase().includes("generating")) {
-      return <TextSearch className="h-4 w-4 text-neutral-400" />;
-    } else if (title.toLowerCase().includes("thinking")) {
-      return <Loader2 className="h-4 w-4 text-neutral-400 animate-spin" />;
-    } else if (title.toLowerCase().includes("reflection")) {
-      return <Brain className="h-4 w-4 text-neutral-400" />;
-    } else if (title.toLowerCase().includes("research")) {
-      return <Search className="h-4 w-4 text-neutral-400" />;
-    } else if (title.toLowerCase().includes("finalizing")) {
-      return <Pen className="h-4 w-4 text-neutral-400" />;
-    }
-    return <Activity className="h-4 w-4 text-neutral-400" />;
+  const [expandedSections, setExpandedSections] = useState<
+    Record<string, boolean>
+  >({});
+
+  const groupedEvents = useMemo(() => {
+    return processedEvents.reduce((acc, event) => {
+      const { sectionType } = event;
+      if (!acc[sectionType]) {
+        acc[sectionType] = [];
+      }
+      acc[sectionType].push(event);
+      return acc;
+    }, {} as Record<string, ProcessedEvent[]>);
+  }, [processedEvents]);
+
+  // Automatically expand new sections as they appear, unless manually collapsed
+  useMemo(() => {
+    Object.keys(groupedEvents).forEach(sectionType => {
+      if (expandedSections[sectionType] === undefined) {
+        setExpandedSections(prev => ({...prev, [sectionType]: true}));
+      }
+    });
+  }, [groupedEvents, expandedSections]);
+
+
+  const toggleSection = (sectionType: string) => {
+    setExpandedSections((prev) => ({
+      ...prev,
+      [sectionType]: !prev[sectionType],
+    }));
   };
 
-  useEffect(() => {
-    if (!isLoading && processedEvents.length !== 0) {
-      setIsTimelineCollapsed(true);
-    }
-  }, [isLoading, processedEvents]);
+  if (isLoading && processedEvents.length === 0) {
+    return (
+      <div className="p-4 text-sm text-neutral-400 flex items-center">
+        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+        Processing...
+      </div>
+    );
+  }
+
+  if (!isLoading && processedEvents.length === 0) {
+    return (
+      <div className="p-4 text-sm text-neutral-500 flex flex-col items-center text-center">
+        <Info className="h-5 w-5 mb-1" />
+        No activity to display.
+      </div>
+    );
+  }
 
   return (
-    <Card className="border-none rounded-lg bg-neutral-700 max-h-96">
-      <CardHeader>
-        <CardDescription className="flex items-center justify-between">
-          <div
-            className="flex items-center justify-start text-sm w-full cursor-pointer gap-2 text-neutral-100"
-            onClick={() => setIsTimelineCollapsed(!isTimelineCollapsed)}
+    <div className="p-1 space-y-2 bg-neutral-800 rounded-lg">
+      {Object.entries(groupedEvents).map(([sectionType, events]) => (
+        <div key={sectionType} className="rounded-md">
+          <button
+            onClick={() => toggleSection(sectionType)}
+            className="w-full flex items-center justify-between p-2 bg-neutral-700 hover:bg-neutral-600 rounded-t-md focus:outline-none transition-colors duration-150"
           >
-            Research
-            {isTimelineCollapsed ? (
-              <ChevronDown className="h-4 w-4 mr-2" />
+            <div className="flex items-center text-sm font-medium text-neutral-100">
+              {getSectionIcon(sectionType)}
+              {sectionType} ({events.length})
+            </div>
+            {expandedSections[sectionType] ? (
+              <ChevronUp className="h-4 w-4 text-neutral-400" />
             ) : (
-              <ChevronUp className="h-4 w-4 mr-2" />
+              <ChevronDown className="h-4 w-4 text-neutral-400" />
             )}
-          </div>
-        </CardDescription>
-      </CardHeader>
-      {!isTimelineCollapsed && (
-        <ScrollArea className="max-h-96 overflow-y-auto">
-          <CardContent>
-            {isLoading && processedEvents.length === 0 && (
-              <div className="relative pl-8 pb-4">
-                <div className="absolute left-3 top-3.5 h-full w-0.5 bg-neutral-800" />
-                <div className="absolute left-0.5 top-2 h-5 w-5 rounded-full bg-neutral-800 flex items-center justify-center ring-4 ring-neutral-900">
-                  <Loader2 className="h-3 w-3 text-neutral-400 animate-spin" />
-                </div>
-                <div>
-                  <p className="text-sm text-neutral-300 font-medium">
-                    Searching...
+          </button>
+          {expandedSections[sectionType] && (
+            <div className="p-2 space-y-1 bg-neutral-750 rounded-b-md">
+              {events.map((event, index) => (
+                <div key={index} className="text-xs text-neutral-300 p-1.5 rounded bg-neutral-800">
+                  <p className="font-medium text-neutral-200 break-all">
+                    {event.title}
                   </p>
+                  {event.isSources && Array.isArray(event.data) ? (
+                    <div className="mt-1 space-y-0.5">
+                      {event.data.map(
+                        (source: any, idx: number) =>
+                          source.url && (
+                            <a
+                              key={idx}
+                              href={source.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center text-blue-400 hover:text-blue-300 hover:underline"
+                            >
+                              <LinkIcon className="h-3 w-3 mr-1 flex-shrink-0" />
+                              <span className="truncate">
+                                {source.title || source.url}
+                              </span>
+                            </a>
+                          )
+                      )}
+                    </div>
+                  ) : typeof event.data === "string" ? (
+                    <p className="whitespace-pre-wrap break-all">{event.data}</p>
+                  ) : event.data && (typeof event.data.stdout === 'string' || typeof event.data.stderr === 'string' || typeof event.data.error === 'string') ? (
+                    // Handle code execution output object
+                    <>
+                      {event.data.stdout && <pre className="whitespace-pre-wrap bg-black p-1 rounded mt-1 text-green-400 break-all">STDOUT: {event.data.stdout}</pre>}
+                      {event.data.stderr && <pre className="whitespace-pre-wrap bg-black p-1 rounded mt-1 text-red-400 break-all">STDERR: {event.data.stderr}</pre>}
+                      {event.data.error && <pre className="whitespace-pre-wrap bg-black p-1 rounded mt-1 text-red-500 break-all">ERROR: {event.data.error}</pre>}
+                    </>
+                  ) : (
+                    <pre className="whitespace-pre-wrap text-xs break-all">
+                      {JSON.stringify(event.data, null, 2)}
+                    </pre>
+                  )}
                 </div>
-              </div>
-            )}
-            {processedEvents.length > 0 ? (
-              <div className="space-y-0">
-                {processedEvents.map((eventItem, index) => (
-                  <div key={index} className="relative pl-8 pb-4">
-                    {index < processedEvents.length - 1 ||
-                    (isLoading && index === processedEvents.length - 1) ? (
-                      <div className="absolute left-3 top-3.5 h-full w-0.5 bg-neutral-600" />
-                    ) : null}
-                    <div className="absolute left-0.5 top-2 h-6 w-6 rounded-full bg-neutral-600 flex items-center justify-center ring-4 ring-neutral-700">
-                      {getEventIcon(eventItem.title, index)}
-                    </div>
-                    <div>
-                      <p className="text-sm text-neutral-200 font-medium mb-0.5">
-                        {eventItem.title}
-                      </p>
-                      <p className="text-xs text-neutral-300 leading-relaxed">
-                        {typeof eventItem.data === "string"
-                          ? eventItem.data
-                          : Array.isArray(eventItem.data)
-                          ? (eventItem.data as string[]).join(", ")
-                          : JSON.stringify(eventItem.data)}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-                {isLoading && processedEvents.length > 0 && (
-                  <div className="relative pl-8 pb-4">
-                    <div className="absolute left-0.5 top-2 h-5 w-5 rounded-full bg-neutral-600 flex items-center justify-center ring-4 ring-neutral-700">
-                      <Loader2 className="h-3 w-3 text-neutral-400 animate-spin" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-neutral-300 font-medium">
-                        Searching...
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : !isLoading ? ( // Only show "No activity" if not loading and no events
-              <div className="flex flex-col items-center justify-center h-full text-neutral-500 pt-10">
-                <Info className="h-6 w-6 mb-3" />
-                <p className="text-sm">No activity to display.</p>
-                <p className="text-xs text-neutral-600 mt-1">
-                  Timeline will update during processing.
-                </p>
-              </div>
-            ) : null}
-          </CardContent>
-        </ScrollArea>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+      {isLoading && (
+         <div className="p-2 text-xs text-neutral-400 flex items-center bg-neutral-700 rounded-md mt-2">
+            <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+            Agent is thinking...
+        </div>
       )}
-    </Card>
+    </div>
   );
 }

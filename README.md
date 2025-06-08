@@ -33,6 +33,10 @@ Follow these steps to get the application running locally for development and te
   1.  Navigate to the `backend/` directory.
   2.  Create a file named `.env` by copying the `backend/.env.example` file.
   3.  Open the `.env` file and add your Gemini API key: `GEMINI_API_KEY="YOUR_ACTUAL_API_KEY"`
+- **`E2B_API_KEY`**: For code execution, the agent uses the E2B (evaluation-to-benchmark) cloud sandbox. You'll need an E2B API key.
+  1. Visit [https://e2b.dev](https://e2b.dev) to create an account and obtain your API key.
+  2. In the `backend/` directory, if you haven't already, create a file named `.env` by copying the `backend/.env.example` file.
+  3. Open the `.env` file and add your E2B API key: `E2B_API_KEY="YOUR_E2B_API_KEY"`
 
 **2. Install Dependencies:**
 
